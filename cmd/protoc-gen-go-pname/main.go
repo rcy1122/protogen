@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"strings"
 
 	gengo "google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo"
@@ -47,12 +46,9 @@ func generate(gen *protogen.Plugin) error {
 		g.P()
 
 		for _, message := range file.Messages {
-
-			log.Println(message.Desc.Name())
 			g.P("func (x *", message.Desc.Name(), ")", " Change() []*Change {")
 			g.P("out := make([]*Change, 0)")
 			for _, field := range message.Fields {
-				log.Println(field.Desc.Cardinality(), field.GoName, field.Desc.HasOptionalKeyword())
 				if field.Desc.HasOptionalKeyword() {
 					g.P("if x.", field.GoName, "!= nil {")
 					genGeneratedSet(g, field)
