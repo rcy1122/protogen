@@ -28,9 +28,6 @@ func generate(gen *protogen.Plugin) error {
 	gen.SupportedFeatures = gengo.SupportedFeatures
 
 	for _, file := range gen.Files {
-		if file.Generate {
-			gengo.GenerateFile(gen, file)
-		}
 		filename := file.GeneratedFilenamePrefix + ".pb.pname.go"
 		g := gen.NewGeneratedFile(filename, file.GoImportPath)
 		genGeneratedHeader(gen, g, file)
