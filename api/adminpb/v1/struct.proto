@@ -1,0 +1,16 @@
+syntax = "proto3";
+package adminpb.v1;
+option go_package = "github.com/rcy1122/protogen/api/adminpb/v1";
+// Service 可授权的服务，如DummyA，DummyB
+message Service {
+    optional int64 id = 1;
+    optional string name = 2;
+    string user = 3;
+}
+
+
+message User {
+    optional int64 id = 1;
+    optional string name = 2;
+    string user = 3;
+}
