@@ -5,8 +5,9 @@ build:
 
 .PHONY: run
 run:
-	@protoc --go-pname_out=paths=source_relative,enum_name=Code:./api \
+	@protoc	--go_out paths=source_relative:./api \
+		--go-pname_out=paths=source_relative,pkg_name=adminpb:./api \
 		-I ./api \
-		./api/adminpb/v1/*.proto
+		./api/adminpb/*.proto
 
 all: build run

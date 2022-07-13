@@ -3,75 +3,60 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strings"
+	"log"
+	"os"
 
 	gengo "google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo"
 	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const protocGenGoPNameVersion = "v0.0.1"
 
 var (
-	flags flag.FlagSet
+	flags   flag.FlagSet
+	pkgName string
 )
 
 func main() {
-	//l := log.Default()
-	//l.SetOutput(os.Stderr)
-	//l.SetFlags(log.Lshortfile)
-
+	debug := true
+	if debug {
+		l := log.Default()
+		l.SetOutput(os.Stderr)
+		l.SetFlags(log.Lshortfile)
+	}
+	flags.StringVar(&pkgName, "pkg_name", "", "generate codes for enums by the name")
 	protogen.Options{ParamFunc: flags.Set}.Run(generate)
 }
 
 func generate(gen *protogen.Plugin) error {
+	if pkgName == "" {
+		return fmt.Errorf("pkg_name is required! ")
+	}
 	gen.SupportedFeatures = gengo.SupportedFeatures
-
 	for _, file := range gen.Files {
+		if !file.Generate {
+			continue
+		}
+
+		if string(file.GoPackageName) != pkgName {
+			continue
+		}
 		filename := file.GeneratedFilenamePrefix + ".pb.pname.go"
 		g := gen.NewGeneratedFile(filename, file.GoImportPath)
 		genGeneratedHeader(gen, g, file)
-
 		g.P("package ", file.GoPackageName)
-		g.P("import (")
-		g.P("	\"strconv\"")
-		g.P("	\"sync\"")
-		g.P(")")
-		g.P()
-
-		g.P(changeStruct())
 		g.P()
 
 		for _, message := range file.Messages {
-			g.P("func (x *", message.Desc.Name(), ")", " Change() []*Change {")
-			g.P("out := make([]*Change, 0)")
 			for _, field := range message.Fields {
-				if field.Desc.HasOptionalKeyword() {
-					g.P("if x.", field.GoName, "!= nil {")
-					genGeneratedSet(g, field)
-					g.P("}")
-				} else {
-					genGeneratedSet(g, field)
-				}
+				g.P("func (x *", message.Desc.Name(), ")", "Get", field.GoName, "Name() string {")
+				g.P("return \"", field.Desc.JSONName(), "\"")
+				g.P("}")
+				g.P()
 			}
-			g.P("return out")
-			g.P("}")
-			g.P()
 		}
 	}
 	return nil
-}
-func genGeneratedSet(g *protogen.GeneratedFile, field *protogen.Field) {
-	ptr := ""
-	if field.Desc.HasOptionalKeyword() {
-		ptr = "P"
-	}
-	switch field.Desc.Kind() {
-	case protoreflect.Int64Kind:
-		g.P("out = append(out, NewChange().SetProperty(\"", field.GoName, "\")", ".Set", strings.Title(field.Desc.Kind().String()), ptr, "(x.", field.GoName, "))")
-	case protoreflect.StringKind:
-		g.P("out = append(out, NewChange().SetProperty(\"", field.GoName, "\")", ".Set", strings.Title(field.Desc.Kind().String()), ptr, "(x.", field.GoName, "))")
-	}
 }
 
 func genGeneratedHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
@@ -88,61 +73,4 @@ func genGeneratedHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *p
 	g.P("// \tprotoc        ", protocVersion)
 	g.P("// source: ", file.Desc.Path())
 	g.P()
-}
-
-func changeStruct() string {
-	backticks := "`"
-	return `
-var changeFree = sync.Pool{
-	New: func() interface{} { return new(Change) },
-}
-
-func NewChange() *Change {
-	return changeFree.Get().(*Change)
-}
-
-type Change struct {
-	Property string ` + backticks + `json:"property,omitempty"` + backticks + `
-	Value    string ` + backticks + `json:"value,omitempty"` + backticks + `
-	Exist    bool   ` + backticks + `json:"exist,omitempty"` + backticks + `
-}
-
-func (c *Change) SetProperty(v string) *Change {
-	c.Property = v
-	return c
-}
-
-func (c *Change) SetStringP(v *string) *Change {
-	if v != nil {
-		c.SetString(*v)
-	}
-	return c
-}
-
-func (c *Change) SetString(v string) *Change {
-	c.Exist = true
-	c.Value = v
-	return c
-}
-
-func (c *Change) SetInt64P(v *int64) *Change {
-	if v != nil {
-		c.SetInt64(*v)
-	}
-	return c
-}
-
-func (c *Change) SetInt64(v int64) *Change {
-	c.Exist = true
-	c.Value = strconv.Itoa(int(v))
-	return c
-}
-
-func (c *Change) Free() {
-	c.Property = ""
-	c.Value = ""
-	c.Exist = false
-	changeFree.Put(c)
-}
-`
 }
